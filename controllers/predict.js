@@ -1,5 +1,6 @@
 
 const onnx = require('onnxruntime-node') ; 
+const fs = require('fs')
 
 
 function normalizeArray(arr) {
@@ -34,7 +35,7 @@ exports.predict = async(req,res) => {
       
     // prepare feeds. use model input names as keys.
     const feeds = {input_1: float_input};
-    
+  
     // feed inputs and run
     const results = await session.run(feeds);
     
@@ -46,6 +47,55 @@ exports.predict = async(req,res) => {
     res.status(500).json(err); 
   }
 }
+
+exports.predictModelOne = async(req,res) => {
+  try{
+    let file = req.file; 
+    if (!req.file) {
+      return  res.status(404).json({ status: 'fail', message: "There is no file, please upload the file again" });
+    }
+    const session = await onnx.InferenceSession.create('./keras_model.onnx');
+
+    const fileContents = fs.readFileSync(req.file.path, 'utf-8');
+    const rows = fileContents.split('\n') ; 
+    const rowsArray = [];
+    const output = [];
+    let data = [] ;
+    const index = 0 ;
+    
+    for (const row of rows) {
+      // Split each row into columns based on the CSV delimiter (e.g., comma)
+      const columns = row.split(",");
+
+      if (isNaN(parseFloat(columns[0]))){
+        continue;
+      }else
+        console.log(parseFloat(columns[0],'👍👍👍👍'));
+      data = columns.map((column) => parseFloat(column));
+
+      // Push the columns as an array into rowsArray
+      // rowsArray.push(data);
+      
+    
+      const float_input = new onnx.Tensor('float32', data, [1, 178]);
+      const feeds = {input_1: float_input};
+    //    // feed inputs and run
+      const results = await session.run(feeds);
+    //  // read from results
+      const resultData = results.y.data;
+      output.push(resultData);
+    }
+        
+    // prepare feeds. use model input names as keys.
+    
+    // console.log(`data of result tensor: ${resultData}`);
+    res.status(200).json({status:"success",output,dataLen:rowsArray.length})
+  }catch(err){
+    res.status(500).json(err); 
+  }
+}
+
+
 
 
 
